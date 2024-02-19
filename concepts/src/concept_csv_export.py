@@ -173,7 +173,6 @@ def main(
     else:
         concepts = all_concepts
     print("Reordering")
-    concepts = move_referring_concepts_down(concepts, get_key())
     if exclude_files:
         print("Filtering out excludes")
         excludes = get_excludes_from_files(exclude_files)
@@ -451,40 +450,6 @@ def get_excludes_from_files(excludes_files: List[str]) -> List[str]:
 def exclude(concepts: List[OrderedDict], excludes: List[str]) -> List[OrderedDict]:
     key = get_key()
     return [c for c in concepts if c[key] not in excludes]
-
-def move_referring_concepts_down(concepts: list, key: str) -> list:
-    """Moves concepts below their answers or set members
-
-    Precondition: concepts must be free of cycles
-    """
-
-    # We keep a dict for the order. The values in the order dict do not
-    # have to be sequential.
-    concept_order = {c[key]: float(i) for i, c in enumerate(concepts)}
-    needs_more_ordering = True
-    count = 0
-    while needs_more_ordering:
-        count += 1
-        print("  Sorting: pass #{}".format(count))
-        needs_more_ordering = False
-        for concept in concepts:
-            members = concept["Members"].split(";")
-            answers = concept["Answers"].split(";")
-            referants = members + answers
-            referants = [r for r in referants if r != ""]
-            if referants:
-                ref_indices = [concept_order[r] for r in referants]
-                if concept_order[concept[key]] <= max(ref_indices):
-                    # We increment by 0.5 so as not to collide with what might
-                    # be a a containing set
-                    concept_order[concept[key]] = max(ref_indices) + 0.5
-                    needs_more_ordering = True
-    key_index_pairs = concept_order.items()
-    sorted_key_index_pairs = sorted(key_index_pairs, key=lambda x: x[1])
-    indexed_concepts = {c[key]: c for c in concepts}
-    ordered_concepts = [indexed_concepts[pair[0]] for pair in sorted_key_index_pairs]
-    return ordered_concepts
-
 
 def run_sql(sql_code: str) -> str:
     """Connects to the database and runs the given SQL code.
