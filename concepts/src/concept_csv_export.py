@@ -172,7 +172,6 @@ def main(
         print("  There are {} concepts in this tree".format(len(concepts)))
     else:
         concepts = all_concepts
-    detect_cycles(concepts)
     print("Reordering")
     concepts = move_referring_concepts_down(concepts, get_key())
     if exclude_files:
@@ -452,49 +451,6 @@ def get_excludes_from_files(excludes_files: List[str]) -> List[str]:
 def exclude(concepts: List[OrderedDict], excludes: List[str]) -> List[OrderedDict]:
     key = get_key()
     return [c for c in concepts if c[key] not in excludes]
-
-
-def detect_cycles(concepts: List[OrderedDict]):
-    """Throws an exception if concepts reference each other cyclically"""
-    key = get_key()
-    all_concepts_by_name = {c[key]: c for c in concepts}
-
-    def get_cycle(concept: OrderedDict, visited=set(), this_branch=[]) -> Optional[set]:
-        if concept[key] in this_branch:
-            return this_branch
-        if concept[key] in visited:
-            return None
-        visited.add(concept[key])
-        this_branch.append(concept[key])
-
-        members = concept["Members"].split(";")
-        answers = concept["Answers"].split(";")
-        for name in members + answers:
-            if name != "":
-                if get_cycle(all_concepts_by_name[name], visited, this_branch):
-                    return this_branch + [name]
-
-        this_branch.remove(concept[key])
-        return None
-
-    # Check all possible trees
-    cycle_strings: List[str] = []
-    for concept in concepts:
-        cycle = get_cycle(concept)
-        if cycle:
-            cycle_string = " --> ".join(cycle)
-            # Check that this isn't a substring of any existing string
-            if all([cycle_string not in c for c in cycle_strings]):
-                cycle_strings.append(cycle_string)
-
-    if cycle_strings:
-        raise Exception(
-            "Some concepts in the specified set refer circularly to each other. "
-            "The concepts therefore cannot be ordered in a CSV. Cylces of "
-            "dependencies are printed below.\n\t"
-            + "\n\t".join(c for c in cycle_strings)
-        )
-
 
 def move_referring_concepts_down(concepts: list, key: str) -> list:
     """Moves concepts below their answers or set members
